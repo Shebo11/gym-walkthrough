@@ -159,7 +159,7 @@ new GLTFLoader().load('2-gym.glb', gltf => {
     const m = o.material; if (!m) return;
     const mn = (m.name || '').toLowerCase(); const nn = o.name || '';
     if (/soaking_tub|bath_step|bath_filler/i.test(nn)) { o.visible = false; return; }
-    if (mn.includes('glass')) { m.transparent = true; m.opacity = .12; m.depthWrite = false; m.side = THREE.DoubleSide; m.envMapIntensity = 1.4; }
+    if (mn.includes('glass')) { m.transparent = true; m.opacity = .1; m.depthWrite = false; m.side = THREE.DoubleSide; m.envMapIntensity = .2; m.roughness = .12; }
     if (mn.includes('black_rubber')) { m.color.set(0x17181a); m.roughness = .55; }
     if (mn.includes('leaf')) { m.color.set(0x66754e); m.roughness = .9; }
     if (mn.includes('bark')) { m.color.set(0x6b5844); m.roughness = .95; }
