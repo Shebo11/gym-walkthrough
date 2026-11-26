@@ -135,7 +135,7 @@ planWall(5.7, GD, 5.7, 20.0, { t: .12 }); planWall(5.7, 21.1, 5.7, 22.4, { t: .1
 planWall(9.0, GD, 9.0, 21.2, { t: .12 }); planWall(9.0, 22.1, 9.0, BZ - .45, { t: .12 });
 planWall(9.0, 21.2, 11.5, 21.2, { t: .12 });
 planWall(11.5, GD, 11.5, 21.2, { t: .06 });
-circles.push([10.9, 2.2, 2.0]);   // round stone soaking tub, NE corner
+circles.push([10.85, 2.75, 1.7]); // corner lounge sofa, NE corner
 circles.push([11.3, 22.4, 1.0]);  // jacuzzi
 
 /* ---------- roof backing (seen from above when ceiling is on) ---------- */
@@ -147,6 +147,8 @@ circles.push([11.3, 22.4, 1.0]);  // jacuzzi
 
 /* ---------- the real model: building + furniture from the design FBX ---------- */
 const CEIL_RE = /ceiling|^ceil|recessed_|spotlight|spot_diffuser|canopy|skylight|wash_diffuser|magnetic_ceiling_track|linear_diffuser/i;
+const ceilMat = new THREE.MeshStandardMaterial({ color: 0xf2ede3, roughness: .95 });
+const ceilGlowMat = new THREE.MeshStandardMaterial({ color: 0xf7f2e8, roughness: .6, emissive: 0xffe9c4, emissiveIntensity: .9 });
 const CEIL_NO = /bench|niche|desk|shelf|vanity|linen|seat|bed/i;
 let modelReady = false;
 new GLTFLoader().load('2-gym.glb', gltf => {
@@ -156,11 +158,16 @@ new GLTFLoader().load('2-gym.glb', gltf => {
     if (!o.isMesh) return;
     const m = o.material; if (!m) return;
     const mn = (m.name || '').toLowerCase(); const nn = o.name || '';
-    if (mn.includes('glass')) { m.transparent = true; m.opacity = .18; m.depthWrite = false; m.side = THREE.DoubleSide; m.envMapIntensity = 1.4; }
+    if (/soaking_tub|bath_step|bath_filler/i.test(nn)) { o.visible = false; return; }
+    if (mn.includes('glass')) { m.transparent = true; m.opacity = .12; m.depthWrite = false; m.side = THREE.DoubleSide; m.envMapIntensity = 1.4; }
+    if (mn.includes('black_rubber')) { m.color.set(0x17181a); m.roughness = .55; }
+    if (mn.includes('leaf')) { m.color.set(0x66754e); m.roughness = .9; }
+    if (mn.includes('bark')) { m.color.set(0x6b5844); m.roughness = .95; }
     if (mn.includes('water')) { m.transparent = true; m.opacity = .8; }
     if (mn.includes('mirror')) { m.color.set(0x9aa0a4); m.roughness = .05; m.metalness = 1; m.envMapIntensity = 1.6; }
     if (mn.includes('screen')) { m.emissive.set(0x14301c); m.emissiveIntensity = .6; }
     const isCeil = (CEIL_RE.test(nn) && !CEIL_NO.test(nn)) || /^Sauna_ceiling|^Sauna_timber_ceiling/.test(nn);
+    if (isCeil) o.material = /diffuser|strip|linear|spotlight|recessed/i.test(nn) ? ceilGlowMat : ceilMat;
     const big = o.geometry.attributes.position.count > 40000;
     o.castShadow = !m.transparent && !isCeil && !big;
     o.receiveShadow = true;
@@ -189,14 +196,36 @@ const wl = new THREE.PointLight(0xfff0dd, 7, 7, 1.7); wl.position.set(7, 2.3, 22
 const wl2 = new THREE.PointLight(0xfff0dd, 4, 6, 1.7); wl2.position.set(1.5, 2.3, 21.7); scene.add(wl2);
 const wl3 = new THREE.PointLight(0xfff0dd, 4, 6, 1.7); wl3.position.set(11, 2.3, 21.5); scene.add(wl3);
 
+/* ---------- corner lounge sofa (from design renders r01/r08; the FBX hides it) ---------- */
+{
+  const green = new THREE.MeshStandardMaterial({ color: 0x46543e, roughness: .92 });
+  const green2 = new THREE.MeshStandardMaterial({ color: 0x4e5c45, roughness: .92 });
+  const cream = new THREE.MeshStandardMaterial({ color: 0xe9e3d4, roughness: .85 });
+  const sofa = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.32, 1.4, .3, 40), green); base.scale.set(1, 1, .8); base.position.y = .15;
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(1.24, 1.28, .22, 40), green2); seat.scale.set(1, 1, .78); seat.position.y = .39;
+  const back = new THREE.Mesh(new THREE.CylinderGeometry(1.34, 1.34, .58, 40, 1, true, Math.PI * .05, Math.PI * .9), green);
+  back.material.side = THREE.DoubleSide; back.scale.set(1, 1, .8); back.position.y = .58;
+  const backTop = new THREE.Mesh(new THREE.TorusGeometry(1.34, .09, 10, 40, Math.PI * .9), green);
+  backTop.rotation.x = Math.PI / 2; backTop.rotation.z = Math.PI * .05; backTop.scale.set(1, .8, 1); backTop.position.y = .87;
+  sofa.add(base, seat, back, backTop);
+  const cushGeo = new THREE.SphereGeometry(.3, 16, 12);
+  for (const [dx, dz, ry] of [[-.55, -.5, .5], [.45, -.6, -.4]]) {
+    const c = new THREE.Mesh(cushGeo, cream); c.scale.set(1, .75, .45); c.position.set(dx, .62, dz); c.rotation.y = ry; sofa.add(c);
+  }
+  sofa.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  sofa.position.set(10.85, 0, 2.75); sofa.rotation.y = Math.PI * .25;
+  root.add(sofa);
+}
+
 /* ---------- tour scenes ---------- */
 const S = [
   { k: 'Overview', t: 'The whole project', d: 'The real design model: gym floor (13.0 x 19.5 m) with the rounded glass corner, and the wellness block along the south side: study room, WC/showers, dressing, sauna and jacuzzi.', cam: [-9, 21, 36], tg: [6.5, 0, 14], ceil: false, img: 'r01', ref: 'Top-down render' },
-  { k: 'Plan', t: 'Top-down layout', d: 'Wood floor with a grey carpet studio zone. Treadmills line the garden glass, pilates mats and equipment on the carpet, the recovery tub in the rounded corner.', cam: [6.5, 36, 12.6], tg: [6.5, 0, 12], ceil: false, img: 'r01', ref: 'Top-down render' },
+  { k: 'Plan', t: 'Top-down layout', d: 'Wood floor with a grey carpet studio zone. Treadmills line the garden glass, pilates mats and equipment on the carpet, the green lounge sofa in the rounded corner.', cam: [6.5, 36, 12.6], tg: [6.5, 0, 12], ceil: false, img: 'r01', ref: 'Top-down render' },
   { k: 'Arrival', t: 'Glass wall to the garden', d: 'Full-height black-framed glazing with a double glass door, looking out to the planted garden. Warm oak floor, soft daylight.', cam: [4.5, 1.65, 11.8], tg: [13, 1.35, 11.8], ceil: true, img: 'r09', ref: 'Design render' },
   { k: 'Cardio', t: 'Treadmill line', d: 'Six treadmills face the garden, with curved manual runners by the studio wall. The wood floor keeps the cardio zone clear and easy to maintain.', cam: [6.4, 1.7, 3.8], tg: [12.5, 1.1, 10], ceil: true, img: 'r12', ref: 'Design render' },
   { k: 'Studio', t: 'Pilates and training wall', d: 'Pilates mats, TRX straps and the swiss ball on the soft grey carpet, with ball storage, stall bars and the wall TV along the panelled wall. Slatted oak ceiling above.', cam: [6.6, 1.65, 17.5], tg: [3, 0.9, 6.5], ceil: true, img: 'r03', ref: 'Design render' },
-  { k: 'Recovery', t: 'Round stone soaking tub', d: 'A honed-stone soaking tub on crescent steps tucks into the rounded glass corner for recovery, with olive trees and the garden beyond.', cam: [6.6, 1.55, 9.5], tg: [10.8, 0.7, 2.2], ceil: true, img: 'r01', ref: 'Top-down render' },
+  { k: 'Lounge', t: 'The corner lounge', d: 'A deep-green oval sofa with cream cushions under the olive trees: the quiet corner from the design renders, looking out to the garden.', cam: [6.6, 1.55, 9.5], tg: [10.8, 0.7, 2.2], ceil: true, img: 'r08', ref: 'Design render' },
   { k: 'Training wall', t: 'Storage, stall bars and aerial hammock', d: 'Panelled feature wall with ball storage racks, stall bars, the hanging aerial hammock and the wall TV.', cam: [6, 1.65, 11], tg: [4, 1.4, 0], ceil: true, img: 'r13', ref: 'Design render' },
   { k: 'Wellness', t: 'Changing rooms, sauna and jacuzzi', d: 'Roof removed to show the plan: study room, WC/shower cells, dressing with lockers and a bench, sauna and jacuzzi inside the curved wall.', cam: [6.5, 19, 31], tg: [6.5, 0, 21.8], ceil: false, img: 'wet', ref: 'Design render' },
   { k: 'Study', t: 'Study room', d: 'A quiet room at the west end of the block: desk, task chairs, shelving and books, with its own door to the outside.', cam: [2.6, 1.7, 23.5], tg: [.6, 1, 20.2], ceil: false, img: 'plan', ref: 'Drawing, page 12' },
